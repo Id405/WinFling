@@ -38,7 +38,6 @@ class WinFlingPopup(QtWidgets.QWidget):
         if(self.launch.text() in config["Programs"]):
             path = config["Programs"][self.launch.text()]
             os.path.expandvars(path)
-            print(path)
             cwd=os.getcwd()
             if(self.launch.text() in config["WorkingDir"]):
                 os.chdir(Path(config["WorkingDir"][self.launch.text()]))
