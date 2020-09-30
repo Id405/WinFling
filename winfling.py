@@ -28,6 +28,10 @@ class WinFlingPopup(QtWidgets.QWidget):
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WA_TranslucentBackground | QtCore.Qt.WindowStaysOnTopHint)
 
     def on_launch_button(self):
+        if(self.launch.text() == ""):
+            self.hide()
+            return
+
         if(self.launch.text() == "quit"):
             sys.exit(0)
 
