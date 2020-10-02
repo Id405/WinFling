@@ -15,6 +15,9 @@ global homeDir
 global config
 
 def loadConfig():
+    if(not Path('config.ini').is_file()):
+        shutil.copyfile('config.example.ini', 'config.ini')
+
     cfg = configparser.ConfigParser()
     cfg.read("config.ini")
     return cfg
@@ -28,8 +31,9 @@ def addShortcut(name, cmd, wd):
 
 class WinFlingPopup(QtWidgets.QWidget):
     def __init__(self):
-        
         super().__init__()
+
+        self.setWindowTitle("WinFling Launch Dialogue")
 
         self.launch = QtWidgets.QLineEdit()
         self.launch.returnPressed.connect(self.on_launch_button)
@@ -96,6 +100,8 @@ class WinFlingPopup(QtWidgets.QWidget):
 class WinFlingNewShortcut(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
+
+        self.setWindowTitle("WinFling Shortcut Dialogue")
 
         self.name = QtWidgets.QLineEdit()
         self.command = QtWidgets.QLineEdit()
@@ -200,6 +206,7 @@ class WinFlingBehaviour():
 if __name__ == "__main__":
     config = loadConfig()
     homeDir = Path.home()
+
     app = WinFlingBehaviour()
 
     sys.exit(app.app.exec_())
