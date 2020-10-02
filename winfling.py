@@ -11,6 +11,7 @@ from PySide2 import QtCore, QtWidgets, QtGui
 #All of this code is terrible, I do not like it at all, this is ultimately a POC (stands for both piece of crap and proof of concept) for something better written in not python
 #This is mainly just for fun so I'm writing it to work now, not be a good base for upgrades or feature additions in the future, because I shouldn't be writing something super complex
 #in python, I should be using rust or go
+global homeDir
 global config
 
 def loadConfig():
@@ -69,6 +70,12 @@ class WinFlingPopup(QtWidgets.QWidget):
         path = shutil.which(self.launch.text())
         if(path != None):
             subprocess.Popen(path)
+        
+        if(self.launch.text()[0] == ":"):
+            cwd=os.getcwd()
+            os.chdir(homeDir)
+            subprocess.Popen(self.launch.text()[1:])
+            os.chdir(cwd)
         
         self.hide()
 
@@ -192,6 +199,7 @@ class WinFlingBehaviour():
 
 if __name__ == "__main__":
     config = loadConfig()
+    homeDir = Path.home()
     app = WinFlingBehaviour()
 
     sys.exit(app.app.exec_())
