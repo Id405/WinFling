@@ -9,13 +9,25 @@ import keyboard
 from PySide2 import QtCore, QtWidgets, QtGui
 
 #All of this code is terrible, I do not like it at all, this is ultimately a POC (stands for both piece of crap and proof of concept) for something better written in not python
+#This is mainly just for fun so I'm writing it to work now, not be a good base for upgrades or feature additions in the future, because I shouldn't be writing something super complex
+#in python, I should be using rust or go
+global config
 
-home = str(Path.home())
-config = configparser.ConfigParser()
-config.read("config.ini")
+def loadConfig():
+    cfg = configparser.ConfigParser()
+    cfg.read("config.ini")
+    return cfg
+
+def addShortcut(name, cmd, wd):
+    config['Programs'][name] = cmd
+    if(wd != None and wd != ""):
+        config['WorkingDir'][name] = wd
+    with open('config.ini', 'w') as configfile:
+        config.write(configfile)
 
 class WinFlingPopup(QtWidgets.QWidget):
     def __init__(self):
+        
         super().__init__()
 
         self.launch = QtWidgets.QLineEdit()
@@ -26,11 +38,21 @@ class WinFlingPopup(QtWidgets.QWidget):
         self.setLayout(self.layout)
 
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WA_TranslucentBackground | QtCore.Qt.WindowStaysOnTopHint)
+        self.round_corners()
 
     def on_launch_button(self):
         if(self.launch.text() == ""):
             self.hide()
             return
+
+        if(self.launch.text() == "reload"):
+            global config
+            config = loadConfig()
+            return
+        
+        if(self.launch.text() == "restart"):
+            subprocess.Popen(sys.executable + " " + sys.argv[0])
+            sys.exit(0)
 
         if(self.launch.text() == "quit"):
             sys.exit(0)
@@ -51,13 +73,71 @@ class WinFlingPopup(QtWidgets.QWidget):
         self.hide()
 
     def round_corners(self):
+        self.show()
         radius = 4.0
         path = QtGui.QPainterPath()
         path.addRoundedRect(QtCore.QRectF(self.rect()), radius, radius)
         mask = QtGui.QRegion(path.toFillPolygon().toPolygon())
         self.setMask(mask)
+        self.hide()
+    
+    def popup(self):
+        self.launch.clear()
+        self.show()
+        self.activateWindow()
 
-class WinFlingApp():
+class WinFlingNewShortcut(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.name = QtWidgets.QLineEdit()
+        self.command = QtWidgets.QLineEdit()
+        self.workingDir = QtWidgets.QLineEdit()
+        self.confirm = QtWidgets.QPushButton("&Add Shortcut") #TODO make styling of this button not ass
+
+        self.name.returnPressed.connect(self.command.setFocus)
+        self.command.returnPressed.connect(self.workingDir.setFocus)
+        self.workingDir.returnPressed.connect(self.onConfirm)
+        self.confirm.clicked.connect(self.onConfirm)
+
+        self.layout = QtWidgets.QFormLayout()
+        self.layout.addRow("Name", self.name)
+        self.layout.addRow("Command", self.command)
+        self.layout.addRow("Working Directory", self.workingDir)
+        self.layout.addRow(self.confirm)
+        self.setLayout(self.layout)
+
+        self.name.setFocus()
+
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WA_TranslucentBackground | QtCore.Qt.WindowStaysOnTopHint)
+        self.round_corners()
+
+    
+    def onConfirm(self):
+        if(self.command.text() == "" or self.name.text() == ""):
+            self.hide()
+            return
+        addShortcut(self.name.text(), self.command.text(), self.workingDir.text())
+        self.hide()
+
+    def round_corners(self):
+        self.show()
+        radius = 4.0
+        path = QtGui.QPainterPath()
+        path.addRoundedRect(QtCore.QRectF(self.rect()), radius, radius)
+        mask = QtGui.QRegion(path.toFillPolygon().toPolygon())
+        self.setMask(mask)
+        self.hide()
+    
+    def popup(self):
+        self.name.clear()
+        self.command.clear()
+        self.workingDir.clear()
+        self.show()
+        self.activateWindow()
+
+
+class WinFlingBehaviour():
     def __init__(self):
         self.hotkeyPressed = False
         self.app = QtWidgets.QApplication([])
@@ -71,13 +151,15 @@ class WinFlingApp():
 
         self.widget = WinFlingPopup()
         rec = desktop.availableGeometry(self.widget)
-        self.widget.show()
         self.widget.move(rec.width()/2-self.widget.width()/2, rec.height()*0.75-self.widget.height()/2)
-        self.widget.round_corners()
-        self.widget.hide()
+
+        self.shortcut = WinFlingNewShortcut()
+        self.shortcut.move(rec.width()/2-self.widget.width()/2, rec.height()*0.75-self.widget.height()/2)
+        self.shortcut.hide()
 
         self.trayMenu = QtWidgets.QMenu()
         self.trayMenu.addAction("launch application")
+        self.trayMenu.addAction("add shortcut")
         self.trayMenu.addAction("exit")
         self.trayMenu.triggered.connect(self.trayClicked)
 
@@ -91,16 +173,13 @@ class WinFlingApp():
         
         keyboard.add_hotkey('ctrl+shift+a', self.launchPopup)
 
-    def popup(self):
-        self.widget.launch.clear()
-        self.widget.show()
-        self.widget.activateWindow()
-
     def trayClicked(self, action):
         if(action.text() == "exit"):
             sys.exit(0)
         if(action.text() == "launch application"):
-            self.popup()
+            self.widget.popup()
+        if(action.text() == "add shortcut"):
+            self.shortcut.popup()
     
     def launchPopup(self):
         self.hotkeyPressed = True
@@ -109,9 +188,10 @@ class WinFlingApp():
     def hotkeyTimerEvent(self):
         if(self.hotkeyPressed):
             self.hotkeyPressed = False
-            self.popup()
+            self.widget.popup()
 
 if __name__ == "__main__":
-    app = WinFlingApp()
+    config = loadConfig()
+    app = WinFlingBehaviour()
 
     sys.exit(app.app.exec_())
