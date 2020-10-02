@@ -14,6 +14,50 @@ from PySide2 import QtCore, QtWidgets, QtGui
 global homeDir
 global config
 
+class shortcutType():
+    def __init__(self, test, call):
+        self.test = test
+        self.call = call
+
+class shortcutTypeList():
+    def __init__(self):
+        def reloadConfig(text, widget):
+            global config
+            config = loadConfig()
+        
+        def restart(text, widget):
+            subprocess.Popen(sys.executable + " " + sys.argv[0])
+            sys.exit(0)
+        
+        def launchFromConfig(text, widget):
+            path = config["Programs"][text]
+            os.path.expandvars(path)
+            cwd=os.getcwd()
+            if(text in config["WorkingDir"]):
+                os.chdir(Path(config["WorkingDir"][text]))
+            subprocess.Popen(path)
+            os.chdir(cwd)
+        
+        def launchFromPath(text, widget):
+            path = shutil.which(text)
+            subprocess.Popen(path)
+        
+        def runCommand(text, widget):
+            cwd=os.getcwd()
+            os.chdir(homeDir)
+            subprocess.Popen(text[1:])
+            os.chdir(cwd)
+
+        self.shortcutTypes = []
+        self.shortcutTypes.append(shortcutType(lambda text, widget : text == "reload", reloadConfig))
+        self.shortcutTypes.append(shortcutType(lambda text, widget : text == "restart", restart))
+        self.shortcutTypes.append(shortcutType(lambda text, widget : text == "quit", lambda text, widget : sys.exit(0)))
+        self.shortcutTypes.append(shortcutType(lambda text, widget : text in config['Programs'], launchFromConfig))
+        self.shortcutTypes.append(shortcutType(lambda text, widget : shutil.which(text) != None, launchFromPath))
+        self.shortcutTypes.append(shortcutType(lambda text, widget : text[0] == ":", runCommand))
+        self.shortcutTypes.append(shortcutType(lambda text, widget : text[0] == "?", lambda text, widget : exec(text[1: ])))
+
+
 def loadConfig():
     if(not Path('config.ini').is_file()):
         shutil.copyfile('config.example.ini', 'config.ini')
@@ -46,40 +90,16 @@ class WinFlingPopup(QtWidgets.QWidget):
         self.round_corners()
 
     def on_launch_button(self):
+        shortcuts = shortcutTypeList()
+
         if(self.launch.text() == ""):
             self.hide()
             return
 
-        if(self.launch.text() == "reload"):
-            global config
-            config = loadConfig()
-            return
-        
-        if(self.launch.text() == "restart"):
-            subprocess.Popen(sys.executable + " " + sys.argv[0])
-            sys.exit(0)
-
-        if(self.launch.text() == "quit"):
-            sys.exit(0)
-
-        if(self.launch.text() in config["Programs"]):
-            path = config["Programs"][self.launch.text()]
-            os.path.expandvars(path)
-            cwd=os.getcwd()
-            if(self.launch.text() in config["WorkingDir"]):
-                os.chdir(Path(config["WorkingDir"][self.launch.text()]))
-            subprocess.Popen(path)
-            os.chdir(cwd)
-        
-        path = shutil.which(self.launch.text())
-        if(path != None):
-            subprocess.Popen(path)
-        
-        if(self.launch.text()[0] == ":"):
-            cwd=os.getcwd()
-            os.chdir(homeDir)
-            subprocess.Popen(self.launch.text()[1:])
-            os.chdir(cwd)
+        for i in shortcuts.shortcutTypes:
+            if i.test(self.launch.text(), self):
+                i.call(self.launch.text(), self)
+                break
         
         self.hide()
 
